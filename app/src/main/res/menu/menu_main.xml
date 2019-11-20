@@ -41,4 +41,9 @@
         android:title="Set Display Name"
         />
 
+    <item
+        android:id="@+id/menu9WebView"
+        android:title="WebView"
+        />
+
 </menu>

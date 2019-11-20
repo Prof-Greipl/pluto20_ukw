@@ -9,6 +9,9 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -28,6 +31,7 @@ import java.util.ArrayList;
 
 import de.hawlandshut.pluto20_ukw.model.Post;
 import de.hawlandshut.pluto20_ukw.test.TestData;
+import de.hawlandshut.pluto20_ukw.web.WebAppInterface;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "xx Main Activity";
@@ -97,28 +101,40 @@ public class MainActivity extends AppCompatActivity {
         switch( item.getItemId() ){
             case R.id.menu1TestAuth:
                doTestAuth();
+               return true;
 
             case R.id.menu2CreateUser:
                 doCreateUser();
+                return true;
 
             case R.id.menu3SignIn:
                 doSignIn();
+                return true;
 
             case R.id.menu4SignOut:
                 doTestSignOut();
+                return true;
 
             case R.id.menu5DeleteTestUser:
                 doDeleteTestUser();
+                return true;
 
             case R.id.menu6SendResetPasswordMail:
                 doSendResetPasswordMail();
+                return true;
 
             case R.id.menu7SendActivationMail:
                 doSendActivationMail();
-
+                return true;
 
             case R.id.menu8SetDisplayName:
                 doSetDisplayName();
+                return true;
+
+            case R.id.menu9WebView:
+                intent = new Intent( getApplication(), WebViewActivity.class);
+                startActivity( intent );
+                return true;
 
             default:
                 return true;
@@ -130,23 +146,117 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void doSendActivationMail() {
+        FirebaseUser user =  FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null){
+            Toast.makeText( getApplicationContext(), "Sending not possible: not signed in! ", Toast.LENGTH_LONG).show();
+            return;
+        }
 
+        // At this point we have a valid user object
+        if (user.isEmailVerified())
+        {
+            Toast.makeText( getApplicationContext(), "Account already verified.", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        user.sendEmailVerification().addOnCompleteListener(
+                this,
+                new OnCompleteListener<Void>() {
+                    @Override
+                    public void onComplete(@NonNull Task<Void> task) {
+                        if (task.isSuccessful()){
+                            Toast.makeText( getApplicationContext(), "Verification mails sent.", Toast.LENGTH_LONG).show();
+                        }
+                        else {
+                            Toast.makeText( getApplicationContext(), "Sending mail failed (check log)", Toast.LENGTH_LONG).show();
+                            Log.d(TAG,task.getException().getLocalizedMessage());
+                        }
+                    }
+                }
+        );
     }
 
     private void doSendResetPasswordMail() {
-
+          FirebaseAuth.getInstance().sendPasswordResetEmail( TEST_MAIL).addOnCompleteListener(
+                  this,
+                  new OnCompleteListener<Void>() {
+                      @Override
+                      public void onComplete(@NonNull Task<Void> task) {
+                          if (task.isSuccessful()){
+                              Toast.makeText( getApplicationContext(), "Mail sent!.", Toast.LENGTH_LONG).show();
+                          }
+                          else {
+                              Toast.makeText( getApplicationContext(), "Sending mail failed (check log)", Toast.LENGTH_LONG).show();
+                              Log.d(TAG,task.getException().getLocalizedMessage());
+                          }
+                      }
+                  }
+          );
     }
 
     private void doDeleteTestUser() {
+        FirebaseUser user =  FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null){
+            Toast.makeText( getApplicationContext(), "Cannot delete account: not signed in! ", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        user.delete().addOnCompleteListener(
+                this,
+                new OnCompleteListener<Void>() {
+                    @Override
+                    public void onComplete(@NonNull Task<Void> task) {
+                        if (task.isSuccessful()){
+                            Toast.makeText( getApplicationContext(), "Account deleted.", Toast.LENGTH_LONG).show();
+                        }
+                        else {
+                            Toast.makeText( getApplicationContext(), "Account deletion failed (check log)", Toast.LENGTH_LONG).show();
+                            Log.d(TAG,task.getException().getLocalizedMessage());
+                        }
+                    }
+                }
+        );
 
     }
 
     private void doTestSignOut() {
+        FirebaseUser user =  FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null){
+            Toast.makeText( getApplicationContext(), "Your are not signed in!", Toast.LENGTH_LONG).show();
+            return;
+        }
+        FirebaseAuth.getInstance().signOut();
+        user =  FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null){
+            Toast.makeText( getApplicationContext(), "Signed out.", Toast.LENGTH_LONG).show();
+        }
+        else {
+            Toast.makeText( getApplicationContext(), "Signed out failed.", Toast.LENGTH_LONG).show();
 
+        }
     }
 
     private void doSignIn() {
-
+        FirebaseUser user =  FirebaseAuth.getInstance().getCurrentUser();
+        if (user != null){
+            Toast.makeText( getApplicationContext(), "Your are signed in! Sign out first!", Toast.LENGTH_LONG).show();
+            return;
+        }
+        FirebaseAuth.getInstance().signInWithEmailAndPassword( TEST_MAIL, TEST_PASSWORD).addOnCompleteListener(
+                this,
+                new OnCompleteListener<AuthResult>() {
+                    @Override
+                    public void onComplete(@NonNull Task<AuthResult> task) {
+                        if (task.isSuccessful()){
+                            Toast.makeText( getApplicationContext(), "Signed In.", Toast.LENGTH_LONG).show();
+                        }
+                        else {
+                            Toast.makeText( getApplicationContext(), "Sign in failed (check log)", Toast.LENGTH_LONG).show();
+                            Log.d(TAG,task.getException().getLocalizedMessage());
+                        }
+                    }
+                }
+        );
     }
 
     private void doCreateUser() {
@@ -170,7 +280,9 @@ public class MainActivity extends AppCompatActivity {
     private void doTestAuth() {
         FirebaseUser user;
         user = FirebaseAuth.getInstance().getCurrentUser();
-        String msg =  (user == null) ? "Not Authenticated" : ("Authenticated : " +user.getEmail() );
+        String msg =  (user == null) ?
+                "Not Authenticated" :
+                ("Authenticated : " +user.getEmail() +"(Verified:" + user.isEmailVerified()+ ")" );
         Toast.makeText( getApplicationContext(), msg, Toast.LENGTH_LONG).show();
     }
 
@@ -178,6 +290,17 @@ public class MainActivity extends AppCompatActivity {
     protected void onStart() {
         super.onStart();
         Log.d(TAG, "onStart called");
+        // Check, if we have a user
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if( user == null){
+            // We have no user. Reset the app and goto SignInActivity
+            // TODO Reset app
+
+            // Goto SignInAct
+            Intent intent;
+            intent = new Intent( getApplication(), SignInActivity.class);
+            startActivity( intent );
+        }
     }
 
     @Override
