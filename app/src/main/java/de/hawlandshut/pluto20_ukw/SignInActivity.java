@@ -3,6 +3,7 @@ package de.hawlandshut.pluto20_ukw;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -43,17 +44,20 @@ public class SignInActivity extends AppCompatActivity implements View.OnClickLis
         mButtonCreateAccount.setOnClickListener( this );
 
         // TODO: Only for testing
-        mEditTextEmail.setText("dieter.greipl@gmail.com");
+        mEditTextEmail.setText("dietergreipl@gmail.com");
         mEditTextPassword.setText("123456");
     }
 
     @Override
     public void onClick(View v) {
+        Intent intent;
         int i = v.getId();
         switch(i) {
             case R.id.sign_in_button_create_account:
-                Toast.makeText( getApplicationContext(), "Create Account pressed", Toast.LENGTH_LONG).show();
+                intent = new Intent( getApplication(), CreateAccountActivity.class);
+                startActivity( intent );
                 return;
+
             case R.id.sign_in_button_reset_password:
                 doSendResetPasswordMail();
                 return;
@@ -81,6 +85,7 @@ public class SignInActivity extends AppCompatActivity implements View.OnClickLis
                     public void onComplete(@NonNull Task<AuthResult> task) {
                         if (task.isSuccessful()){
                             Toast.makeText( getApplicationContext(), "Signed In.", Toast.LENGTH_LONG).show();
+                            finish();
                         }
                         else {
                             Toast.makeText( getApplicationContext(), "Sign in failed (check log)", Toast.LENGTH_LONG).show();
@@ -108,5 +113,18 @@ public class SignInActivity extends AppCompatActivity implements View.OnClickLis
                     }
                 }
         );
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        Log.d(TAG, "onStart called");
+        // Check, if we have a user. This can only happen, if we return from
+        // CreateAccount
+        FirebaseUser user;
+        user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user != null){
+           finish();
+        }
     }
 }

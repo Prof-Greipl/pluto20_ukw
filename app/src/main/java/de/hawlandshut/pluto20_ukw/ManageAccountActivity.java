@@ -84,9 +84,10 @@ public class ManageAccountActivity extends AppCompatActivity implements View.OnC
                     public void onComplete(@NonNull Task<Void> task) {
                         if (task.isSuccessful()){
                             Toast.makeText( getApplicationContext(), "Account deleted.", Toast.LENGTH_LONG).show();
+                            finish();
                         }
                         else {
-                            Toast.makeText( getApplicationContext(), "Account deletion failed (check log)", Toast.LENGTH_LONG).show();
+                            Toast.makeText( getApplicationContext(), "Account deletion failed. Try to sign out and sign in again.", Toast.LENGTH_LONG).show();
                             Log.d(TAG,task.getException().getLocalizedMessage());
                         }
                     }
@@ -135,6 +136,7 @@ public class ManageAccountActivity extends AppCompatActivity implements View.OnC
         user =  FirebaseAuth.getInstance().getCurrentUser();
         if (user == null){
             Toast.makeText( getApplicationContext(), "Signed out.", Toast.LENGTH_LONG).show();
+            finish();
         }
         else {
             Toast.makeText( getApplicationContext(), "Signed out failed.", Toast.LENGTH_LONG).show();
