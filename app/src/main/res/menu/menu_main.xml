@@ -5,15 +5,16 @@
         android:title="Manage Account"
         />
 
+
     <item
         android:id="@+id/menu_post"
         android:title="Post"
         />
 
-    <item
-        android:id="@+id/menu_write"
-        android:title="Test Writing to Database"
-        />
 
+    <item
+        android:id="@+id/menu_simulate_crash"
+        android:title="Simulate Crash"
+        />
 
 </menu>

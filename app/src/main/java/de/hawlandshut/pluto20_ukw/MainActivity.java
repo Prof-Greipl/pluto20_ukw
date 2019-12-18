@@ -22,6 +22,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.crashlytics.android.Crashlytics;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.AuthResult;
@@ -58,6 +59,7 @@ public class MainActivity extends AppCompatActivity {
     String TEST_PASSWORD = "123456";
 
     // Verbindiung zur DB
+    boolean mListenerIsRunning;
     ChildEventListener mCEL;
     Query mQuery;
 
@@ -69,8 +71,8 @@ public class MainActivity extends AppCompatActivity {
         // Init ListView
         mListView = findViewById( R.id.mainListViewMessages);
 
-        // Initialisieren der Post-Liste mit Testdaten
-        mPostList = (ArrayList<Post>) TestData.createTestdata();
+        // Initialisieren der Post-Liste
+        mPostList = new ArrayList<Post>();
         mAdapter = new ArrayAdapter<Post>(
                 this,
                 android.R.layout.simple_list_item_2,
@@ -86,7 +88,7 @@ public class MainActivity extends AppCompatActivity {
                 line1 = view.findViewById( android.R.id.text1 );
                 line2 = view.findViewById( android.R.id.text2 );
 
-                Post post = getItem(position);
+                Post post = getItem( getCount() - 1 - position);
 
                 line1.setText(post.author+ " (" +post.title + " )");
                 line2.setText(post.body );
@@ -100,8 +102,9 @@ public class MainActivity extends AppCompatActivity {
 
         // Query und CEL initialisieren
         mCEL = getChildEventListener();
-        mQuery = FirebaseDatabase.getInstance().getReference().child("posts/");
-        mQuery.addChildEventListener( mCEL );
+        mQuery = FirebaseDatabase.getInstance().getReference().child("posts/").limitToLast(5);
+
+        mListenerIsRunning = false;
 
     }
 
@@ -110,6 +113,10 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onChildAdded(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
                 Log.d(TAG, "Child added : " + dataSnapshot.getKey());
+                // Verarbeitetn des empfangenen Posts
+                Post p = Post.fromSnapShot( dataSnapshot );
+                mPostList.add( p );
+                mAdapter.notifyDataSetChanged();
             }
 
             @Override
@@ -119,6 +126,14 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onChildRemoved(@NonNull DataSnapshot dataSnapshot) {
+                String key = dataSnapshot.getKey();
+                for (int i = 0; i < mPostList.size(); i++){
+                    if (key.equals( mPostList.get(i).firebaseKey)){
+                        mPostList.remove(i);
+                        break;
+                    }
+                }
+                mAdapter.notifyDataSetChanged();
                 Log.d(TAG, "Child deleted : " + dataSnapshot.getKey());
             }
 
@@ -129,6 +144,7 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onCancelled(@NonNull DatabaseError databaseError) {
+                mListenerIsRunning = false;
                 Log.d(TAG, "Listener cancelled.");
             }
         };
@@ -150,6 +166,9 @@ public class MainActivity extends AppCompatActivity {
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         Intent intent;
         switch( item.getItemId() ){
+            case R.id.menu_simulate_crash:
+                Crashlytics.getInstance().crash();
+
             case R.id.menu_manage_account:
                 // Goto to ManageAccount
                 intent = new Intent( getApplication(), ManageAccountActivity.class);
@@ -159,27 +178,6 @@ public class MainActivity extends AppCompatActivity {
             case R.id.menu_post:
                 intent = new Intent( getApplication(), PostActivity.class);
                 startActivity( intent );
-                return true;
-
-            case R.id.menu_write:
-               // TODO Implement Testwriting
-                Map<String,Object> postMap = new HashMap<>();
-                postMap.put("uid", "das ist die UID");
-                postMap.put("author", "my Author");
-                postMap.put("title", "my Title");
-                postMap.put("body", "my Body");
-                postMap.put("timestamp", ServerValue.TIMESTAMP);
-
-                // Schreiben
-                DatabaseReference mDatabase;
-                try {
-                    mDatabase = FirebaseDatabase.getInstance().getReference("posts/");
-                    mDatabase.push().setValue( postMap );
-                }
-                catch ( Exception e){
-                    Log.d(TAG, "Fehler beim Schreiben :" + e.getLocalizedMessage());
-                }
-
                 return true;
 
             default:
@@ -195,15 +193,35 @@ public class MainActivity extends AppCompatActivity {
         // Check, if we have a user
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if( user == null){
-            // We have no user. Reset the app and goto SignInActivity
-            // TODO Reset app
+            resetApp();
 
-            // Goto SignInAct
             Intent intent;
             intent = new Intent( getApplication(), SignInActivity.class);
             startActivity( intent );
         }
+        else {
+            // Start listener if we have a user
+            if (!mListenerIsRunning) {
+
+                mPostList.clear();
+                mAdapter.notifyDataSetChanged();
+
+                mQuery.addChildEventListener(mCEL);
+                mListenerIsRunning = true;
+            }
+
+        }
     }
 
+    void resetApp(){
+
+        if (mListenerIsRunning){
+            mQuery.removeEventListener( mCEL );
+            mListenerIsRunning = false;
+        }
+
+        mPostList.clear();
+        mAdapter.notifyDataSetChanged();
+    }
 
 }
