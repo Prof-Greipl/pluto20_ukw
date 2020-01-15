@@ -68,6 +68,8 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        FirebaseDatabase.getInstance().setPersistenceEnabled(true);
+
         // Init ListView
         mListView = findViewById( R.id.mainListViewMessages);
 
@@ -204,7 +206,6 @@ public class MainActivity extends AppCompatActivity {
 
                 mPostList.clear();
                 mAdapter.notifyDataSetChanged();
-
                 mQuery.addChildEventListener(mCEL);
                 mListenerIsRunning = true;
             }
